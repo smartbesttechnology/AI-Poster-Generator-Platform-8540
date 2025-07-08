@@ -1,34 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Use default values that will be replaced when connected to a real Supabase project
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder-project.supabase.co';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key';
+// Supabase project credentials
+const supabaseUrl = 'https://btwjbhpgmeuljaetqdbx.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0d2piaHBnbWV1bGphZXRxZGJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE5Mzk5MTUsImV4cCI6MjA2NzUxNTkxNX0.PLJmWa7l0kGENgRLTa9uQPEdaRb79iWScSfGbDFi4Jo';
 
-// Create a mock implementation if env variables are missing
-const mockClient = {
+// Create Supabase client
+export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
-    getSession: () => Promise.resolve({ data: { session: null } }),
-    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-    signInWithPassword: () => Promise.resolve({ error: null }),
-    signUp: () => Promise.resolve({ error: null }),
-    signInWithOAuth: () => Promise.resolve({ error: null }),
-    signOut: () => Promise.resolve()
-  },
-  from: () => ({
-    select: () => ({
-      eq: () => ({
-        single: () => Promise.resolve({ data: null, error: null }),
-        order: () => Promise.resolve({ data: [], error: null })
-      }),
-      order: () => Promise.resolve({ data: [], error: null })
-    }),
-    delete: () => ({
-      eq: () => Promise.resolve({ error: null })
-    })
-  })
-};
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  }
+});
 
-// Use real client if credentials are available, otherwise use mock
-export const supabase = (supabaseUrl.includes('placeholder') || supabaseKey.includes('placeholder'))
-  ? mockClient
-  : createClient(supabaseUrl, supabaseKey);
+// Export default for compatibility
+export default supabase;

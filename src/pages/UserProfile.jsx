@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
-import { supabase } from '../utils/supabase';
+import supabase from '../lib/supabase';
 
 const { FiArrowLeft, FiUser, FiDownload, FiTrash2, FiEdit } = FiIcons;
 
@@ -26,7 +26,7 @@ function UserProfile({ user }) {
   const fetchUserProfile = async () => {
     try {
       const { data, error } = await supabase
-        .from('profiles')
+        .from('profiles_ai2024')
         .select('*')
         .eq('id', user.id)
         .single();
@@ -44,7 +44,7 @@ function UserProfile({ user }) {
   const fetchUserDesigns = async () => {
     try {
       const { data, error } = await supabase
-        .from('designs')
+        .from('designs_ai2024')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
@@ -69,7 +69,7 @@ function UserProfile({ user }) {
   const handleDeleteDesign = async (designId) => {
     try {
       const { error } = await supabase
-        .from('designs')
+        .from('designs_ai2024')
         .delete()
         .eq('id', designId);
 
@@ -80,6 +80,35 @@ function UserProfile({ user }) {
       }
     } catch (error) {
       console.error('Error deleting design:', error);
+    }
+  };
+
+  const handleDownloadDesign = async (design) => {
+    try {
+      // Increment download count
+      const { error } = await supabase
+        .from('designs_ai2024')
+        .update({ downloads: (design.downloads || 0) + 1 })
+        .eq('id', design.id);
+
+      if (error) {
+        console.error('Error updating download count:', error);
+      }
+
+      // Update local state
+      setDesigns(prev => 
+        prev.map(d => 
+          d.id === design.id 
+            ? { ...d, downloads: (d.downloads || 0) + 1 }
+            : d
+        )
+      );
+
+      // Here you would typically trigger the actual download
+      // For now, we'll just show an alert
+      alert('Design download started!');
+    } catch (error) {
+      console.error('Error downloading design:', error);
     }
   };
 
@@ -146,15 +175,15 @@ function UserProfile({ user }) {
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-white">
-              {designs.filter(d => d.created_at > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length}
+              {designs.filter(d => new Date(d.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length}
             </div>
             <div className="text-white/70 text-sm">This Week</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-white">
-              {designs.filter(d => d.downloads > 0).length}
+              {designs.reduce((sum, d) => sum + (d.downloads || 0), 0)}
             </div>
-            <div className="text-white/70 text-sm">Downloaded</div>
+            <div className="text-white/70 text-sm">Total Downloads</div>
           </div>
         </div>
       </motion.div>
@@ -196,17 +225,21 @@ function UserProfile({ user }) {
                 className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-4 hover:bg-white/20 transition-all"
               >
                 <div className="aspect-video bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg mb-4 flex items-center justify-center">
-                  <span className="text-white text-sm">
+                  <span className="text-white text-sm font-semibold">
                     {design.type?.toUpperCase() || 'DESIGN'}
                   </span>
                 </div>
                 
                 <h4 className="text-white font-semibold mb-2 truncate">
-                  {design.title || design.prompt || 'Untitled Design'}
+                  {design.title || design.prompt?.substring(0, 30) || 'Untitled Design'}
                 </h4>
                 
-                <p className="text-white/70 text-sm mb-4">
+                <p className="text-white/70 text-sm mb-2">
                   {new Date(design.created_at).toLocaleDateString()}
+                </p>
+                
+                <p className="text-white/50 text-xs mb-4">
+                  Downloads: {design.downloads || 0}
                 </p>
                 
                 <div className="flex items-center justify-between">
@@ -214,7 +247,9 @@ function UserProfile({ user }) {
                     <motion.button
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
+                      onClick={() => handleDownloadDesign(design)}
                       className="bg-green-600 hover:bg-green-700 text-white p-2 rounded-lg transition-all"
+                      title="Download Design"
                     >
                       <SafeIcon icon={FiDownload} className="text-sm" />
                     </motion.button>
@@ -222,7 +257,9 @@ function UserProfile({ user }) {
                     <motion.button
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
+                      onClick={() => navigate(`/design/${design.type}?edit=${design.id}`)}
                       className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg transition-all"
+                      title="Edit Design"
                     >
                       <SafeIcon icon={FiEdit} className="text-sm" />
                     </motion.button>
@@ -233,6 +270,7 @@ function UserProfile({ user }) {
                     whileTap={{ scale: 0.9 }}
                     onClick={() => handleDeleteDesign(design.id)}
                     className="bg-red-600 hover:bg-red-700 text-white p-2 rounded-lg transition-all"
+                    title="Delete Design"
                   >
                     <SafeIcon icon={FiTrash2} className="text-sm" />
                   </motion.button>

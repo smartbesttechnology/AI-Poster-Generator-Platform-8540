@@ -10,46 +10,44 @@ import './App.css';
 
 function App() {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(false); // Changed to false to avoid unnecessary loading screen
+  const [loading, setLoading] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
-  const [supabaseConnected, setSupabaseConnected] = useState(false);
 
   useEffect(() => {
-    // Check if we have a valid Supabase connection
-    const checkConnection = async () => {
+    // Get initial session
+    const getSession = async () => {
       try {
-        // Simple check to see if Supabase is configured
-        const { error } = await supabase.auth.getSession();
-        setSupabaseConnected(!error);
-      } catch (error) {
-        console.log('Supabase not connected yet');
-        setSupabaseConnected(false);
-      }
-      setLoading(false);
-    };
-    
-    checkConnection();
-
-    // Set up auth state listener only if properly connected
-    if (supabaseConnected) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        (event, session) => {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Error getting session:', error);
+        } else {
           setUser(session?.user ?? null);
-          if (event === 'SIGNED_IN') {
-            setShowAuth(false);
-          }
         }
-      );
-      
-      return () => {
-        try {
-          subscription?.unsubscribe();
-        } catch (error) {
-          console.error('Error unsubscribing from auth changes:', error);
+      } catch (error) {
+        console.error('Error getting session:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    getSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
+        setUser(session?.user ?? null);
+        
+        if (event === 'SIGNED_IN') {
+          setShowAuth(false);
         }
-      };
-    }
-  }, [supabaseConnected]);
+      }
+    );
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -59,6 +57,7 @@ function App() {
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
           className="w-8 h-8 border-2 border-white border-t-transparent rounded-full"
         />
+        <span className="ml-3 text-white">Loading...</span>
       </div>
     );
   }
@@ -94,40 +93,8 @@ function App() {
         </Routes>
         
         <AnimatePresence>
-          {showAuth && supabaseConnected && (
+          {showAuth && (
             <AuthModal onClose={() => setShowAuth(false)} />
-          )}
-          
-          {/* Show connect modal if trying to authenticate but not connected */}
-          {showAuth && !supabaseConnected && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-              onClick={() => setShowAuth(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-white rounded-2xl p-8 max-w-md w-full"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">
-                  Supabase Not Connected
-                </h2>
-                <p className="mb-4">
-                  Authentication requires a Supabase connection. Please connect your Supabase project first.
-                </p>
-                <button
-                  onClick={() => setShowAuth(false)}
-                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold"
-                >
-                  Close
-                </button>
-              </motion.div>
-            </motion.div>
           )}
         </AnimatePresence>
       </div>

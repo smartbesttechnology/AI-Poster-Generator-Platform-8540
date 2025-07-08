@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { fabric } from 'fabric';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
@@ -8,16 +8,20 @@ import PromptInput from '../components/PromptInput';
 import DesignCanvas from '../components/DesignCanvas';
 import ToolPanel from '../components/ToolPanel';
 import { generateDesign } from '../utils/aiService';
+import supabase from '../lib/supabase';
 
 const { FiArrowLeft, FiDownload, FiRefreshCw, FiSave, FiUser } = FiIcons;
 
 function DesignStudio({ user, onAuthClick }) {
   const { type } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [canvas, setCanvas] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentPrompt, setCurrentPrompt] = useState('');
   const [designHistory, setDesignHistory] = useState([]);
+  const [currentDesign, setCurrentDesign] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
   const canvasRef = useRef(null);
 
   const dimensions = {
@@ -26,6 +30,14 @@ function DesignStudio({ user, onAuthClick }) {
   };
   
   const currentDimensions = dimensions[type] || dimensions.youtube;
+
+  useEffect(() => {
+    // Check if editing existing design
+    const editId = searchParams.get('edit');
+    if (editId && user) {
+      loadDesignForEdit(editId);
+    }
+  }, [searchParams, user]);
 
   useEffect(() => {
     // Safeguard to prevent errors if the ref isn't ready
@@ -68,9 +80,40 @@ function DesignStudio({ user, onAuthClick }) {
       }
     } catch (error) {
       console.error('Error initializing canvas:', error);
-      // Create fallback UI or messaging here
     }
   }, [currentDimensions]);
+
+  const loadDesignForEdit = async (designId) => {
+    try {
+      const { data, error } = await supabase
+        .from('designs_ai2024')
+        .select('*')
+        .eq('id', designId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Error loading design:', error);
+        return;
+      }
+
+      setCurrentDesign(data);
+      setCurrentPrompt(data.prompt);
+      
+      // Load canvas data if available
+      if (data.canvas_data && canvas) {
+        try {
+          canvas.loadFromJSON(data.canvas_data, () => {
+            canvas.renderAll();
+          });
+        } catch (error) {
+          console.error('Error loading canvas data:', error);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading design for edit:', error);
+    }
+  };
 
   const handleGenerateDesign = async (prompt) => {
     if (!canvas || !prompt.trim()) return;
@@ -178,6 +221,66 @@ function DesignStudio({ user, onAuthClick }) {
     });
   };
 
+  const handleSaveDesign = async () => {
+    if (!user) {
+      onAuthClick();
+      return;
+    }
+
+    if (!canvas || !currentPrompt.trim()) {
+      alert('Please generate a design first');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const canvasData = canvas.toJSON();
+      const designData = {
+        backgroundColor: canvas.backgroundColor,
+        dimensions: currentDimensions,
+        objects: canvas.getObjects().length
+      };
+
+      const designPayload = {
+        user_id: user.id,
+        title: currentPrompt.substring(0, 50),
+        prompt: currentPrompt,
+        type: type,
+        design_data: designData,
+        canvas_data: JSON.stringify(canvasData)
+      };
+
+      let result;
+      if (currentDesign) {
+        // Update existing design
+        result = await supabase
+          .from('designs_ai2024')
+          .update(designPayload)
+          .eq('id', currentDesign.id)
+          .select();
+      } else {
+        // Create new design
+        result = await supabase
+          .from('designs_ai2024')
+          .insert([designPayload])
+          .select();
+      }
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      setCurrentDesign(result.data[0]);
+      alert('Design saved successfully!');
+    } catch (error) {
+      console.error('Error saving design:', error);
+      alert('Failed to save design. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleDownload = () => {
     if (!canvas) return;
     
@@ -226,6 +329,19 @@ function DesignStudio({ user, onAuthClick }) {
         </div>
 
         <div className="flex items-center space-x-3">
+          {user && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleSaveDesign}
+              disabled={isSaving}
+              className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all disabled:opacity-50"
+            >
+              <SafeIcon icon={FiSave} className="text-sm" />
+              <span>{isSaving ? 'Saving...' : 'Save'}</span>
+            </motion.button>
+          )}
+
           {currentPrompt && (
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -287,6 +403,7 @@ function DesignStudio({ user, onAuthClick }) {
             onGenerate={handleGenerateDesign}
             isGenerating={isGenerating}
             designType={type}
+            initialPrompt={currentPrompt}
           />
         </motion.div>
 

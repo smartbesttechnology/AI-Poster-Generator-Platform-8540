@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
-import { supabase } from '../utils/supabase';
+import supabase from '../lib/supabase';
 
 const { FiX, FiMail, FiLock, FiUser } = FiIcons;
 
@@ -37,6 +37,11 @@ function AuthModal({ onClose }) {
           },
         });
         if (error) throw error;
+        
+        // Show success message for signup
+        if (!error) {
+          alert('Account created successfully! Please check your email to verify your account.');
+        }
       }
       
       onClose();
@@ -44,17 +49,6 @@ function AuthModal({ onClose }) {
       setError(error.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleGoogleAuth = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-      });
-      if (error) throw error;
-    } catch (error) {
-      setError(error.message);
     }
   };
 
@@ -141,6 +135,7 @@ function AuthModal({ onClose }) {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 placeholder="Enter your password"
                 required
+                minLength={6}
               />
             </div>
           </div>
@@ -153,24 +148,6 @@ function AuthModal({ onClose }) {
             {loading ? 'Loading...' : (isLogin ? 'Sign In' : 'Sign Up')}
           </button>
         </form>
-
-        <div className="mt-6">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">Or continue with</span>
-            </div>
-          </div>
-
-          <button
-            onClick={handleGoogleAuth}
-            className="w-full mt-4 bg-white border border-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-all flex items-center justify-center space-x-2"
-          >
-            <span>Google</span>
-          </button>
-        </div>
 
         <div className="mt-6 text-center">
           <button

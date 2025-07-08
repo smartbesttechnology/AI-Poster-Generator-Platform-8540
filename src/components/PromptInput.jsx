@@ -1,13 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
 
 const { FiZap, FiImage, FiType, FiPalette } = FiIcons;
 
-function PromptInput({ onGenerate, isGenerating, designType }) {
-  const [prompt, setPrompt] = useState('');
+function PromptInput({ onGenerate, isGenerating, designType, initialPrompt = '' }) {
+  const [prompt, setPrompt] = useState(initialPrompt);
   const [selectedCategory, setSelectedCategory] = useState('general');
+
+  useEffect(() => {
+    setPrompt(initialPrompt);
+  }, [initialPrompt]);
 
   const categories = {
     general: {
