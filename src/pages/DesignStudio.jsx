@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { fabric } from 'fabric';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
@@ -10,11 +10,12 @@ import ToolPanel from '../components/ToolPanel';
 import { generateDesign } from '../utils/aiService';
 import supabase from '../lib/supabase';
 
-const { FiArrowLeft, FiDownload, FiRefreshCw, FiSave, FiUser } = FiIcons;
+const { FiArrowLeft, FiDownload, FiRefreshCw, FiSave, FiUser, FiCheck } = FiIcons;
 
 function DesignStudio({ user, onAuthClick }) {
   const { type } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const [canvas, setCanvas] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -22,22 +23,30 @@ function DesignStudio({ user, onAuthClick }) {
   const [designHistory, setDesignHistory] = useState([]);
   const [currentDesign, setCurrentDesign] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
   const canvasRef = useRef(null);
 
   const dimensions = {
     youtube: { width: 1280, height: 720 },
-    instagram: { width: 1080, height: 1080 }
+    instagram: { width: 1080, height: 1080 },
+    quote: { width: 1080, height: 1080 }
   };
   
   const currentDimensions = dimensions[type] || dimensions.youtube;
 
   useEffect(() => {
-    // Check if editing existing design
+    // Check for design passed from landing page
+    if (location.state?.design) {
+      setCurrentPrompt(location.state.prompt || '');
+      // We'll apply the design once the canvas is initialized
+    }
+    
+    // Check if editing existing design from database
     const editId = searchParams.get('edit');
     if (editId && user) {
       loadDesignForEdit(editId);
     }
-  }, [searchParams, user]);
+  }, [location, searchParams, user]);
 
   useEffect(() => {
     // Safeguard to prevent errors if the ref isn't ready
@@ -70,6 +79,13 @@ function DesignStudio({ user, onAuthClick }) {
         fabricCanvas.setHeight(currentDimensions.height * scale);
         setCanvas(fabricCanvas);
 
+        // Apply design from landing page if available
+        if (location.state?.design) {
+          setTimeout(() => {
+            applyDesignToCanvas(location.state.design);
+          }, 500);
+        }
+
         return () => {
           try {
             fabricCanvas.dispose();
@@ -81,7 +97,7 @@ function DesignStudio({ user, onAuthClick }) {
     } catch (error) {
       console.error('Error initializing canvas:', error);
     }
-  }, [currentDimensions]);
+  }, [currentDimensions, location.state]);
 
   const loadDesignForEdit = async (designId) => {
     try {
@@ -120,6 +136,7 @@ function DesignStudio({ user, onAuthClick }) {
     
     setIsGenerating(true);
     setCurrentPrompt(prompt);
+    setIsSaved(false);
     
     try {
       const design = await generateDesign(prompt, type);
@@ -141,29 +158,14 @@ function DesignStudio({ user, onAuthClick }) {
       canvas.clear();
       canvas.setBackgroundColor(design.backgroundColor || '#ffffff', canvas.renderAll.bind(canvas));
 
-      // Add background elements
-      if (design.backgroundImage) {
-        try {
-          const img = await loadImage(design.backgroundImage);
-          const fabricImg = new fabric.Image(img, {
-            left: 0,
-            top: 0,
-            scaleX: currentDimensions.width / img.width,
-            scaleY: currentDimensions.height / img.height,
-            selectable: false
-          });
-          canvas.add(fabricImg);
-        } catch (error) {
-          console.error('Error loading background image:', error);
-        }
-      }
-
       // Add text elements
       if (design.textElements) {
         design.textElements.forEach(textElement => {
           const text = new fabric.Text(textElement.text, {
             left: textElement.x || 50,
             top: textElement.y || 50,
+            originX: textElement.align === 'center' ? 'center' : 'left',
+            originY: 'center',
             fontFamily: textElement.fontFamily || 'Arial',
             fontSize: textElement.fontSize || 48,
             fill: textElement.color || '#000000',
@@ -191,12 +193,15 @@ function DesignStudio({ user, onAuthClick }) {
 
       // Add main title
       const title = new fabric.Text(prompt.slice(0, 50), {
-        left: 50,
-        top: currentDimensions.height / 2 - 50,
+        left: type === 'youtube' ? 640 : 540,
+        top: type === 'youtube' ? 200 : 400,
+        originX: 'center',
+        originY: 'center',
         fontFamily: 'Arial',
         fontSize: type === 'youtube' ? 72 : 48,
         fill: '#ffffff',
-        fontWeight: 'bold'
+        fontWeight: 'bold',
+        textAlign: 'center'
       });
       
       canvas.add(title);
@@ -204,21 +209,6 @@ function DesignStudio({ user, onAuthClick }) {
     } catch (error) {
       console.error('Error creating fallback design:', error);
     }
-  };
-
-  const loadImage = (url) => {
-    return new Promise((resolve, reject) => {
-      if (!url) {
-        reject(new Error('No URL provided'));
-        return;
-      }
-      
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = url;
-    });
   };
 
   const handleSaveDesign = async () => {
@@ -272,7 +262,12 @@ function DesignStudio({ user, onAuthClick }) {
       }
 
       setCurrentDesign(result.data[0]);
-      alert('Design saved successfully!');
+      setIsSaved(true);
+      
+      // Hide the saved indicator after 3 seconds
+      setTimeout(() => {
+        setIsSaved(false);
+      }, 3000);
     } catch (error) {
       console.error('Error saving design:', error);
       alert('Failed to save design. Please try again.');
@@ -285,10 +280,46 @@ function DesignStudio({ user, onAuthClick }) {
     if (!canvas) return;
     
     try {
+      // Temporarily set canvas to original dimensions for proper export
+      const currentZoom = canvas.getZoom();
+      const currentWidth = canvas.getWidth();
+      const currentHeight = canvas.getHeight();
+      
+      canvas.setZoom(1);
+      canvas.setWidth(currentDimensions.width);
+      canvas.setHeight(currentDimensions.height);
+      canvas.renderAll();
+      
       const link = document.createElement('a');
       link.download = `posterforge-${type}-${Date.now()}.png`;
-      link.href = canvas.toDataURL('image/png');
+      link.href = canvas.toDataURL({
+        format: 'png',
+        quality: 1,
+        multiplier: 1
+      });
+      
+      // Reset canvas to previous state
+      canvas.setZoom(currentZoom);
+      canvas.setWidth(currentWidth);
+      canvas.setHeight(currentHeight);
+      canvas.renderAll();
+      
+      // Trigger download
       link.click();
+      
+      // Increment download count if design is saved
+      if (currentDesign) {
+        supabase
+          .from('designs_ai2024')
+          .update({ downloads: (currentDesign.downloads || 0) + 1 })
+          .eq('id', currentDesign.id)
+          .then(() => {
+            console.log('Download count updated');
+          })
+          .catch(error => {
+            console.error('Error updating download count:', error);
+          });
+      }
     } catch (error) {
       console.error('Error downloading design:', error);
       alert('Failed to download design. Please try again.');
@@ -337,8 +368,17 @@ function DesignStudio({ user, onAuthClick }) {
               disabled={isSaving}
               className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all disabled:opacity-50"
             >
-              <SafeIcon icon={FiSave} className="text-sm" />
-              <span>{isSaving ? 'Saving...' : 'Save'}</span>
+              {isSaved ? (
+                <>
+                  <SafeIcon icon={FiCheck} className="text-sm" />
+                  <span>Saved</span>
+                </>
+              ) : (
+                <>
+                  <SafeIcon icon={FiSave} className="text-sm" />
+                  <span>{isSaving ? 'Saving...' : 'Save'}</span>
+                </>
+              )}
             </motion.button>
           )}
 
