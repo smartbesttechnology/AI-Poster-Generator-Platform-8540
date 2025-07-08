@@ -68,11 +68,11 @@ function PromptInput({ onGenerate, isGenerating, designType, initialPrompt = '' 
   };
 
   return (
-    <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6 h-full">
-      <h3 className="text-xl font-semibold text-white mb-4">
+    <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-4 sm:p-6 h-full">
+      <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">
         Create {designType === 'youtube' ? 'YouTube Thumbnail' : 'Instagram Post'}
       </h3>
-
+      
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-white/80 text-sm font-medium mb-2">
@@ -82,30 +82,30 @@ function PromptInput({ onGenerate, isGenerating, designType, initialPrompt = '' 
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="e.g., Red background, bold white text saying 'EPIC GAMING', gaming controller icon, dark theme with neon blue accents"
-            className="w-full h-32 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+            className="w-full h-24 sm:h-32 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-sm sm:text-base"
             disabled={isGenerating}
           />
         </div>
-
+        
         <motion.button
           type="submit"
           disabled={!prompt.trim() || isGenerating}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-pink-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+          className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-pink-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 text-sm sm:text-base"
         >
           {isGenerating ? (
             <>
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
+                className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full"
               />
               <span>Generating...</span>
             </>
           ) : (
             <>
-              <SafeIcon icon={FiZap} className="text-lg" />
+              <SafeIcon icon={FiZap} className="text-sm sm:text-lg" />
               <span>Generate Design</span>
             </>
           )}
@@ -113,15 +113,15 @@ function PromptInput({ onGenerate, isGenerating, designType, initialPrompt = '' 
       </form>
 
       {/* Category Tabs */}
-      <div className="mt-6">
-        <div className="flex space-x-2 mb-4">
+      <div className="mt-4 sm:mt-6">
+        <div className="flex flex-wrap gap-1 sm:gap-2 mb-4">
           {Object.entries(categories).map(([key, category]) => (
             <button
               key={key}
               onClick={() => setSelectedCategory(key)}
-              className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                selectedCategory === key
-                  ? 'bg-white/20 text-white'
+              className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
+                selectedCategory === key 
+                  ? 'bg-white/20 text-white' 
                   : 'bg-white/5 text-white/70 hover:bg-white/10'
               }`}
             >
@@ -134,22 +134,24 @@ function PromptInput({ onGenerate, isGenerating, designType, initialPrompt = '' 
         {/* Suggestions */}
         <div className="space-y-2">
           <h4 className="text-white/80 text-sm font-medium">Quick suggestions:</h4>
-          {categories[selectedCategory].suggestions.map((suggestion, index) => (
-            <motion.button
-              key={index}
-              onClick={() => handleSuggestionClick(suggestion)}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-              className="w-full text-left p-3 bg-white/5 hover:bg-white/10 rounded-lg text-white/80 text-sm transition-all border border-white/10 hover:border-white/20"
-            >
-              {suggestion}
-            </motion.button>
-          ))}
+          <div className="space-y-2 max-h-40 sm:max-h-60 overflow-y-auto">
+            {categories[selectedCategory].suggestions.map((suggestion, index) => (
+              <motion.button
+                key={index}
+                onClick={() => handleSuggestionClick(suggestion)}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                className="w-full text-left p-2 sm:p-3 bg-white/5 hover:bg-white/10 rounded-lg text-white/80 text-xs sm:text-sm transition-all border border-white/10 hover:border-white/20"
+              >
+                {suggestion}
+              </motion.button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Tips */}
-      <div className="mt-6 p-4 bg-white/5 rounded-lg border border-white/10">
+      <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-white/5 rounded-lg border border-white/10">
         <h4 className="text-white/80 text-sm font-medium mb-2">💡 Tips for better results:</h4>
         <ul className="text-white/60 text-xs space-y-1">
           <li>• Be specific about colors, fonts, and style</li>

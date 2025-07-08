@@ -18,3 +18,34 @@ body {
   width: 100%;
   height: 100%;
 }
+
+/* Fix dropdown styling for better visibility */
+select {
+  background-color: #1f2937 !important;
+  color: #ffffff !important;
+}
+
+select option {
+  background-color: #1f2937 !important;
+  color: #ffffff !important;
+  padding: 8px 12px;
+}
+
+select:focus {
+  outline: none;
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+}
+
+/* Responsive select styling */
+@media (max-width: 640px) {
+  select {
+    font-size: 14px;
+  }
+}
+
+@media (min-width: 640px) {
+  select {
+    font-size: 16px;
+  }
+}

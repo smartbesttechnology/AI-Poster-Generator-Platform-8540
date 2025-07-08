@@ -6,6 +6,9 @@ export default {
   ],
   theme: {
     extend: {
+      screens: {
+        'xs': '475px',
+      },
       animation: {
         'pulse-slow': 'pulse 3s infinite',
         'bounce-slow': 'bounce 2s infinite',
@@ -15,6 +18,10 @@ export default {
       },
       fontFamily: {
         'display': ['Inter', 'system-ui', 'sans-serif'],
+      },
+      spacing: {
+        '18': '4.5rem',
+        '88': '22rem',
       },
     },
   },
